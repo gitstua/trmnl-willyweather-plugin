@@ -4,13 +4,13 @@ Private plugin. Hourly or 7-day view, one API call per refresh. Works on OG (800
 
 ## Setup
 1. TRMNL → Plugins → Private Plugin → new.
-2. **Form fields**: paste `form_fields.yml`. Save, fill API key / location ID / view.
+2. **Form fields**: in `src/settings.yml` (`custom_fields`).
 3. **Strategy**: Polling · GET · URL:
    ```
    https://api.willyweather.com.au/v2/{{ api_key }}/locations/{{ location_id }}/weather.json?forecasts=weather,temperature,precis,rainfall,rainfallprobability&days=7&observational=true
    ```
 4. **Refresh**: 60 min (≈24 calls/day per plugin instance, shared across devices).
-5. **Markup → Full**: paste `full.liquid`.
+5. **Markup → Full**: `src/full.liquid`.
 6. Add to playlist. For hourly + daily on same device: create two instances (mode differs), both in playlist.
 
 ## Data used
@@ -32,3 +32,12 @@ Private plugin. Hourly or 7-day view, one API call per refresh. Works on OG (800
 
 ## Preview
 `python3 preview/render.py` → `preview/out/*.png` (mock data, OG + 1-bit sim + X).
+
+## GitHub sync
+1. Create empty private repo.
+2. TRMNL: create private plugin → GitHub sync widget → connect repo (folder blank or e.g. `plugins/willyweather`). TRMNL pushes stub `src/` + `.trmnlp.yml`.
+3. `git pull`, overwrite `src/` with this repo's files (keep TRMNL's `.trmnlp.yml` or merge), push.
+4. TRMNL prompts import → accept. GitHub→TRMNL is manual; TRMNL→GitHub automatic on Save.
+5. Set API key in plugin settings in TRMNL UI (never in repo).
+
+Local dev: `gem install trmnl_preview && WILLYWEATHER_API_KEY=… trmnlp serve`.
