@@ -5,7 +5,7 @@ Private plugin. Hourly or 7-day view, one API call per refresh. Works on OG (800
 Not associated with WillyWeather. Just an example of using their API by a fan. For the best weather in Australia you can visit (www.willyweather.com.au)[https://www.willyweather.com.au/]
 
 ## Example
-<img width="1872" height="1404" alt="image" src="https://github.com/user-attachments/assets/d48578b9-222c-4891-a3b1-8817028c3a1b" />
+<img width="936" height="702" alt="example epaper image" src="https://github.com/user-attachments/assets/37914ba8-5191-49d2-a0df-b9e501765394" />
 
 
 ## Setup
