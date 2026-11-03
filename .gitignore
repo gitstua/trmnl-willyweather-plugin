@@ -2,3 +2,4 @@ preview/out/
 __pycache__/
 .env
 *.zip
+.DS_Store

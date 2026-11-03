@@ -7,11 +7,18 @@ Private plugin. Hourly or 7-day view, one API call per refresh. Works on OG (800
 2. **Form fields**: in `src/settings.yml` (`custom_fields`).
 3. **Strategy**: Polling · GET · URL:
    ```
-   https://api.willyweather.com.au/v2/{{ api_key }}/locations/{{ location_id }}/weather.json?forecasts=weather,temperature,precis,rainfall,rainfallprobability&days=7&observational=true
+   https://api.willyweather.com.au/v2/{{ api_key }}/locations/{% if location_id == "other" %}{{ custom_location_id }}{% else %}{{ location_id }}{% endif %}/weather.json?forecasts=weather,temperature,precis,rainfall,rainfallprobability&days=7&observational=true
    ```
 4. **Refresh**: 60 min (≈24 calls/day per plugin instance, shared across devices).
 5. **Markup → Full**: `src/full.liquid`.
 6. Add to playlist. For hourly + daily on same device: create two instances (mode differs), both in playlist.
+
+## Location examples
+Find the ID with `https://api.willyweather.com.au/v2/<key>/search.json?query=<name>` → `id` of the matching result.
+| Place | Query | Location ID |
+|---|---|---|
+| Sydney | `query=Sydney` | `4950` |
+| Canberra (International Airport) | `query=Canberra` | `19662` |
 
 ## Data used
 | WW forecast | Granularity | Used for |
