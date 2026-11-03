@@ -1,10 +1,11 @@
 <!-- TRMNL private plugin: WillyWeather Curve (full layout)
      Polling response = WillyWeather v2 weather.json (top-level keys: location, forecasts, observational)
-     Custom fields: mode (hourly|daily), hours (12|24|36|48) -->
+     Custom fields: mode (hourly|daily), hours (12|24|36|48)
+     Attribution: WillyWeather API terms s13 require name + brand logo wherever API data is shown. -->
 <style>
   .ww { --ink:#000; --paper:#fff; --mute:#888; position:absolute; inset:0; background:var(--paper); color:var(--ink);
         font-family: Inter, "Helvetica Neue", Arial, sans-serif; display:flex; flex-direction:column;
-        padding:1.6rem 1.8rem 1.1rem; box-sizing:border-box; font-size:1rem; -webkit-font-smoothing:none; } 
+        padding:1.6rem 1.8rem 1.1rem; box-sizing:border-box; font-size:1rem; -webkit-font-smoothing:none; }
   .ww * { box-sizing:border-box; }
   .ww-main { flex:1; display:flex; gap:2rem; min-height:0; }
   .ww-left { width:34%; display:flex; flex-direction:column; }
@@ -30,7 +31,10 @@
   .ww-tmr-r { margin-left:auto; font-size:1.15rem; }
   .ww-chart { flex:1; min-width:0; position:relative; }
   .ww-chart svg { position:absolute; inset:0; width:100%; height:100%; overflow:visible; }
-  .ww-foot { display:flex; justify-content:space-between; border-top:2px solid var(--ink); padding-top:0.5rem; margin-top:0.8rem; font-size:0.85rem; }
+  .ww-foot { display:flex; justify-content:space-between; align-items:center; border-top:2px solid var(--ink); padding-top:0.45rem; margin-top:0.8rem; font-size:0.85rem; }
+  .ww-src { display:flex; align-items:center; gap:0.45rem; }
+  .ww-src svg { height:1.35rem; width:auto; flex:none; }
+  .ww-src b { font-weight:700; }
   .ww-err { margin:auto; font-size:1.2rem; }
 </style>
 
@@ -53,6 +57,10 @@ window.WW_DATA = {
   var D = window.WW_DATA || {}, root = document.getElementById("ww");
   var W = window.innerWidth || 800, H = window.innerHeight || 480;
   document.documentElement.style.fontSize = (16 * Math.min(W / 800, H / 480)) + "px";
+
+  /* WillyWeather brand mark (monochrome conversion of supplied logo, for attribution) */
+  var WW_LOGO = '<svg viewBox="-4 -10 152 127" aria-label="WillyWeather"><path fill="#000" fill-rule="evenodd" d="M56,112C49,109 46,104 46,98C46,96 45,94 44,92C43,90 42,88 41,86C41,83 40,82 34,81C23,77 17,71 18,65C19,62 19,61 12,58C-2,51 -4,42 7,31C31,4 108,-9 135,9C147,17 143,31 125,42L120,45L121,51C123,71 102,82 65,84C56,84 48,85 48,85C48,87 53,91 56,93C62,95 79,94 87,89C90,87 90,87 90,89C90,92 83,99 77,101C70,103 61,102 54,99L49,97L51,100C53,105 59,109 64,110C71,112 71,112 69,113C67,115 59,114 56,112ZM68,76C92,73 108,65 108,55C108,51 109,51 97,55C78,62 66,63 45,63C27,63 26,64 26,65C26,74 44,79 68,76ZM42,51C73,48 113,36 120,27C124,22 123,19 117,16C106,10 84,11 59,18C17,30 -2,48 24,51C27,51 30,52 30,52C31,52 36,52 42,51Z"/></svg>';
+  var WW_CREDIT = '<span class="ww-src">' + WW_LOGO + '<span>Data: <b>WillyWeather</b> · willyweather.com.au</span></span>';
 
   /* ---------- time: all local times stored as "naive UTC" Dates ---------- */
   function parseLocal(s) { var m = String(s).match(/(\d+)-(\d+)-(\d+)[ T](\d+):(\d+)/); return m ? new Date(Date.UTC(+m[1], m[2] - 1, +m[3], +m[4], +m[5])) : null; }
@@ -254,9 +262,9 @@ window.WW_DATA = {
         (tmr ? '<div class="ww-tmr"><div class="ww-k">Tomorrow · ' + DAYS[tmr.t.getUTCDay()] + '</div><div class="ww-tmr-row">' + icon(tmr.code) +
           '<div class="ww-tmr-t">' + tmr.max + "° / " + tmr.min + '°</div><div class="ww-tmr-r">' + (rr != null ? '<svg viewBox="0 0 24 24" style="width:0.9em;height:0.9em;vertical-align:-0.05em"><path d="M12 3c3 4.2 6 7.6 6 11a6 6 0 0 1-12 0c0-3.4 3-6.8 6-11z" fill="#000"/></svg> ' + rr + "%" : "") + "</div></div></div>" : "") +
       '</div><div class="ww-chart" id="wwc"></div></div>' +
-      '<div class="ww-foot"><span>WillyWeather · ' + (mode === "daily" ? "7-day" : (+D.hours || 24) + "-hour") + "</span><span>Updated " + hm(now) + "</span></div>";
+      '<div class="ww-foot">' + WW_CREDIT + "<span>" + (mode === "daily" ? "7-day" : (+D.hours || 24) + "-hour") + " · Updated " + hm(now) + "</span></div>";
     var k = Math.min(W / 800, H / 480), box = document.getElementById("wwc"), cw = box.clientWidth / k, ch = box.clientHeight / k;
     box.innerHTML = '<svg viewBox="0 0 ' + cw + " " + ch + '" font-family="Inter, Helvetica Neue, Arial, sans-serif">' + (mode === "daily" ? dailyChart(cw, ch, now) : hourlyChart(cw, ch, now)) + "</svg>";
-  } catch (e) { root.innerHTML = '<div class="ww-err">Weather unavailable: ' + e.message + "</div>"; }
+  } catch (e) { root.innerHTML = '<div class="ww-err">Weather unavailable: ' + e.message + '</div><div class="ww-foot">' + WW_CREDIT + "<span></span></div>"; }
 })();
 </script>
