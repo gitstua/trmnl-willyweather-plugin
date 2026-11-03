@@ -1,0 +1,157 @@
+<!-- WillyWeather Curve: compact view (quadrant / half_horizontal / half_vertical). Adapts to its container.
+     Attribution: WillyWeather API terms s13 require name + brand logo wherever API data is shown. -->
+<style>.wwq{position:absolute;inset:0;background:#fff;overflow:hidden}.wwq>svg{display:block;width:100%;height:100%}</style>
+<div class="wwq"></div>
+<script>
+(function () {
+  "use strict";
+  var root = document.currentScript && document.currentScript.previousElementSibling;
+  if (!root || !root.classList.contains("wwq")) { var all = document.querySelectorAll(".wwq"); root = all[all.length - 1]; }
+  var D = {
+    location: {{ location | json }},
+    forecasts: {{ forecasts | json }},
+    observational: {{ observational | json }},
+    utcOffset: "{{ trmnl.user.utc_offset | default: 0 }}"
+  };
+  var FONT = "Inter, Helvetica Neue, Arial, sans-serif", HOUR = 3600e3;
+  var LOGO_D = "M56,112C49,109 46,104 46,98C46,96 45,94 44,92C43,90 42,88 41,86C41,83 40,82 34,81C23,77 17,71 18,65C19,62 19,61 12,58C-2,51 -4,42 7,31C31,4 108,-9 135,9C147,17 143,31 125,42L120,45L121,51C123,71 102,82 65,84C56,84 48,85 48,85C48,87 53,91 56,93C62,95 79,94 87,89C90,87 90,87 90,89C90,92 83,99 77,101C70,103 61,102 54,99L49,97L51,100C53,105 59,109 64,110C71,112 71,112 69,113C67,115 59,114 56,112ZM68,76C92,73 108,65 108,55C108,51 109,51 97,55C78,62 66,63 45,63C27,63 26,64 26,65C26,74 44,79 68,76ZM42,51C73,48 113,36 120,27C124,22 123,19 117,16C106,10 84,11 59,18C17,30 -2,48 24,51C27,51 30,52 30,52C31,52 36,52 42,51Z";
+
+  function parseLocal(s) { var m = String(s).match(/(\d+)-(\d+)-(\d+)[ T](\d+):(\d+)/); return m ? new Date(Date.UTC(+m[1], m[2] - 1, +m[3], +m[4], +m[5])) : null; }
+  function nowLocal() {
+    var d = new Date(), tz = D.location && D.location.timeZone;
+    try {
+      var p = new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(d);
+      var g = function (t) { return +p.filter(function (x) { return x.type === t; })[0].value; };
+      return new Date(Date.UTC(g("year"), g("month") - 1, g("day"), g("hour"), g("minute")));
+    } catch (e) { return new Date(d.getTime() + (+D.utcOffset || 0) * 1000); }
+  }
+  var DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  function hr(d) { var h = d.getUTCHours(), a = h < 12 ? "am" : "pm"; h = h % 12 || 12; return h + a; }
+  function hm(d) { return ("0" + d.getUTCHours()).slice(-2) + ":" + ("0" + d.getUTCMinutes()).slice(-2); }
+  function dayKey(d) { return d.toISOString().slice(0, 10); }
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+
+  /* icons */
+  var CLOUD = "M6.6 19h10.6a4 4 0 0 0 .6-7.95 6 6 0 0 0-11.5 1.05A3.45 3.45 0 0 0 6.6 19z";
+  var SCLOUD = "M8.6 20h8.4a3.3 3.3 0 0 0 .5-6.55 4.9 4.9 0 0 0-9.4.85A2.85 2.85 0 0 0 8.6 20z";
+  function sun(cx, cy, r) { var s = '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="#fff"/>'; for (var i = 0; i < 8; i++) { var a = i * Math.PI / 4, c = Math.cos(a), n = Math.sin(a); s += '<line x1="' + (cx + c * (r + 1.6)) + '" y1="' + (cy + n * (r + 1.6)) + '" x2="' + (cx + c * (r + 3.4)) + '" y2="' + (cy + n * (r + 3.4)) + '"/>'; } return s; }
+  function moon(cx, cy, r) { return '<path fill="#fff" d="M' + (cx + r * 0.3) + ' ' + (cy - r) + 'a' + r + ' ' + r + ' 0 1 0 ' + (r * 0.75) + ' ' + (r * 1.55) + 'A' + (r * 0.8) + ' ' + (r * 0.8) + ' 0 0 1 ' + (cx + r * 0.3) + ' ' + (cy - r) + 'z"/>'; }
+  function drops(y) { return '<path d="M9 ' + y + 'l-1 2.4M12.5 ' + y + 'l-1 2.4M16 ' + y + 'l-1 2.4"/>'; }
+  function iconKind(code) {
+    code = code || "";
+    if (/thunder/.test(code)) return "storm"; if (/snow|hail|sleet/.test(code)) return "snow"; if (/fog|frost|dust|mist|haze/.test(code)) return "fog";
+    if (/wind/.test(code)) return "wind"; if (/chance-shower-fine|shower-or-two/.test(code)) return "sunrain"; if (/shower|rain|drizzle/.test(code)) return "rain";
+    if (/^fine$/.test(code)) return "sun"; if (/mostly-fine|high-cloud|partly/.test(code)) return "partly"; return "cloud";
+  }
+  function iconBody(code, night) {
+    var k = iconKind(code), orb = function (cx, cy, r) { return night ? moon(cx, cy, r) : sun(cx, cy, r); };
+    if (k === "sun") return night ? moon(11, 12, 6) : sun(12, 12, 4.6);
+    if (k === "partly") return orb(15.5, 8, 3.2) + '<path fill="#fff" d="' + SCLOUD + '"/>';
+    if (k === "cloud") return '<path fill="#fff" d="' + CLOUD + '"/>';
+    if (k === "sunrain") return orb(16, 6.5, 2.8) + '<path fill="#fff" d="M7.6 16h8.4a3.3 3.3 0 0 0 .5-6.55 4.9 4.9 0 0 0-9.4.85A2.85 2.85 0 0 0 7.6 16z"/>' + drops(18.6);
+    if (k === "rain") return '<path fill="#fff" d="M6.6 15.5h10.6a4 4 0 0 0 .6-7.95 6 6 0 0 0-11.5 1.05A3.45 3.45 0 0 0 6.6 15.5z"/>' + drops(18.4);
+    if (k === "storm") return '<path fill="#fff" d="M6.6 15h10.6a4 4 0 0 0 .6-7.95 6 6 0 0 0-11.5 1.05A3.45 3.45 0 0 0 6.6 15z"/><path d="M12.8 15.5l-2.3 3.6h3l-2.2 3.6" stroke-linejoin="miter"/>';
+    if (k === "snow") return '<path fill="#fff" d="M6.6 15h10.6a4 4 0 0 0 .6-7.95 6 6 0 0 0-11.5 1.05A3.45 3.45 0 0 0 6.6 15z"/><path d="M9 18.5h.01M12.5 20h.01M16 18.5h.01M10.5 21.8h.01M14.5 21.8h.01" stroke-width="2.6"/>';
+    if (k === "fog") return '<path fill="#fff" d="M6.6 13h10.6a4 4 0 0 0 .6-7.95 6 6 0 0 0-11.5 1.05A3.45 3.45 0 0 0 6.6 13z"/><path d="M4 16.5h16M6 19.5h12"/>';
+    return '<path d="M3 9h11a3 3 0 1 0-3-3M3 13h15a3 3 0 1 1-3 3M3 17h7"/>';
+  }
+  function place(code, night, x, y, sz) { return '<g fill="none" stroke="#000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" transform="translate(' + (x - sz / 2).toFixed(1) + "," + (y - sz / 2).toFixed(1) + ")scale(" + (sz / 24).toFixed(3) + ')">' + iconBody(code, night) + "</g>"; }
+  function txt(x, y, s, sz, o) { o = o || {}; return '<text x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" font-size="' + sz + '" text-anchor="' + (o.a || "start") + '" font-weight="' + (o.w || 500) + '"' + (o.fill ? ' fill="' + o.fill + '"' : "") + (o.ls ? ' letter-spacing="' + o.ls + '"' : "") + ">" + s + "</text>"; }
+
+  /* data */
+  var F = D.forecasts || {};
+  function flat(key, map) { var out = []; ((F[key] && F[key].days) || []).forEach(function (d) { (d.entries || []).forEach(function (e) { var t = parseLocal(e.dateTime); if (t) out.push(map(e, t)); }); }); return out.sort(function (a, b) { return a.t - b.t; }); }
+  var temps = flat("temperature", function (e, t) { return { t: t, v: e.temperature }; });
+  var precis = flat("precis", function (e, t) { return { t: t, code: e.precisCode, text: e.precis, night: !!e.night }; });
+  var rainP = flat("rainfallprobability", function (e, t) { return { t: t, v: e.probability }; });
+  var daily = ((F.weather && F.weather.days) || []).map(function (d) { var e = (d.entries || [])[0] || {}; return { t: parseLocal(d.dateTime), min: e.min, max: e.max, code: e.precisCode, text: e.precis }; });
+  var rainD = {}; ((F.rainfall && F.rainfall.days) || []).forEach(function (d) { var e = (d.entries || [])[0]; if (e) rainD[dayKey(parseLocal(d.dateTime))] = e; });
+  function stepAt(arr, t) { var r = null; for (var i = 0; i < arr.length; i++) { if (arr[i].t <= t) r = arr[i]; else break; } return r || arr[0] || null; }
+  function lerpAt(arr, t) { for (var i = 0; i < arr.length - 1; i++) if (arr[i].t <= t && arr[i + 1].t >= t) { var f = (t - arr[i].t) / (arr[i + 1].t - arr[i].t || 1); return arr[i].v + f * (arr[i + 1].v - arr[i].v); } return arr.length ? arr[t < arr[0].t ? 0 : arr.length - 1].v : null; }
+  function dailyRainPct(d) { var k = dayKey(d.t); if (rainD[k] && rainD[k].probability != null) return rainD[k].probability; var mx = null; rainP.forEach(function (r) { if (dayKey(r.t) === k) mx = Math.max(mx || 0, r.v); }); return mx; }
+  function rainNext(now, hrs) { var end = +now + hrs * HOUR, mx = null; rainP.forEach(function (r) { if (+r.t > +now - 3 * HOUR && +r.t <= end) mx = Math.max(mx || 0, r.v); }); return mx; }
+  function mono(pts) {
+    var n = pts.length; if (n < 2) return ""; var dx = [], m = [], s = [], i;
+    for (i = 0; i < n - 1; i++) { dx[i] = pts[i + 1][0] - pts[i][0]; s[i] = (pts[i + 1][1] - pts[i][1]) / (dx[i] || 1); }
+    m[0] = s[0]; m[n - 1] = s[n - 2];
+    for (i = 1; i < n - 1; i++) m[i] = s[i - 1] * s[i] <= 0 ? 0 : 3 * (dx[i - 1] + dx[i]) / ((2 * dx[i] + dx[i - 1]) / s[i - 1] + (dx[i] + 2 * dx[i - 1]) / s[i]);
+    var p = "M" + pts[0][0].toFixed(1) + "," + pts[0][1].toFixed(1);
+    for (i = 0; i < n - 1; i++) { var h = dx[i] / 3; p += "C" + (pts[i][0] + h).toFixed(1) + "," + (pts[i][1] + m[i] * h).toFixed(1) + " " + (pts[i + 1][0] - h).toFixed(1) + "," + (pts[i + 1][1] - m[i + 1] * h).toFixed(1) + " " + pts[i + 1][0].toFixed(1) + "," + pts[i + 1][1].toFixed(1); }
+    return p;
+  }
+  function scale(vals, y0, y1) { var lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals); if (hi - lo < 4) { var c = (hi + lo) / 2; lo = c - 2; hi = c + 2; } return function (v) { return y1 - (v - lo) / (hi - lo) * (y1 - y0); }; }
+
+  function chart(now, x0, x1, y0, y1, N) {
+    var step = N <= 12 ? 3 : (x1 - x0 > 450 ? 3 : 6), pad = 10, cw = x1 - x0, x = function (i) { return x0 + pad + i / N * (cw - 2 * pad); };
+    var start = new Date(Math.floor(now / HOUR) * HOUR), times = [];
+    for (var i = 0; i <= N; i++) times.push(new Date(+start + i * HOUR));
+    var tv = times.map(function (t) { return lerpAt(temps, t); }), rv = times.map(function (t) { var r = lerpAt(rainP, t); return r == null ? 0 : r; });
+    var hgt = y1 - y0, tTop = y0 + 22, tBot = y0 + hgt * 0.56, rTop = y0 + hgt * 0.66, rBot = y1 - 16, axY = y1 - 2;
+    var sy = scale(tv, tTop, tBot), s = "";
+    times.forEach(function (t, i) { if (i > 0 && t.getUTCHours() === 0) {
+      s += '<line x1="' + x(i) + '" x2="' + x(i) + '" y1="' + y0 + '" y2="' + rBot + '" stroke="#000" stroke-width="0.8" stroke-dasharray="2 3"/>' + txt(x(i) + 3, y0 + 9, DAYS[t.getUTCDay()], 9, { w: 700 }); } });
+    s += '<path d="' + mono(times.map(function (t, i) { return [x(i), sy(tv[i])]; })) + '" fill="none" stroke="#000" stroke-width="2.6"/>';
+    var hiI = tv.indexOf(Math.max.apply(null, tv)), loI = tv.indexOf(Math.min.apply(null, tv));
+    times.forEach(function (t, i) {
+      var ext = i === hiI || i === loI, key = i % step === 0 && i !== N && Math.abs(i - hiI) > 1 && Math.abs(i - loI) > 1;
+      if (!key && !ext) return; var px = x(i), py = sy(tv[i]);
+      s += ext ? '<circle cx="' + px + '" cy="' + py + '" r="4" fill="#fff" stroke="#000" stroke-width="2"/>' : '<circle cx="' + px + '" cy="' + py + '" r="2.4" fill="#000"/>';
+      s += txt(px, i === loI && i !== hiI ? py + 15 : py - 8, Math.round(tv[i]) + "°", ext ? 12 : 10, { a: "middle", w: ext ? 700 : 500 });
+    });
+    var ry = function (v) { return rBot - Math.max(0, Math.min(100, v || 0)) / 100 * (rBot - rTop); };
+    var rp = times.map(function (t, i) { return [x(i), ry(rv[i])]; }), line = mono([[x0, rp[0][1]]].concat(rp, [[x1, rp[rp.length - 1][1]]]));
+    s += '<path d="' + line + "L" + x1 + "," + rBot + "L" + x0 + "," + rBot + 'Z" fill="url(#wwq-dith)"/><path d="' + line + '" fill="none" stroke="#000" stroke-width="1.6"/>';
+    s += '<line x1="' + x0 + '" x2="' + x1 + '" y1="' + rTop + '" y2="' + rTop + '" stroke="#000" stroke-width="1" stroke-dasharray="1 3"/>' + txt(x1, rTop - 3, "100% rain", 8, { a: "end", w: 400 });
+    s += '<line x1="' + x0 + '" x2="' + x1 + '" y1="' + rBot + '" y2="' + rBot + '" stroke="#000" stroke-width="1.6"/>';
+    var rmI = rv.indexOf(Math.max.apply(null, rv));
+    if (rv[rmI] >= 10) s += '<rect x="' + (x(rmI) - 13) + '" y="' + (ry(rv[rmI]) - 15) + '" width="26" height="11" rx="2" fill="#fff"/>' + txt(x(rmI), ry(rv[rmI]) - 6.5, Math.round(rv[rmI]) + "%", 9, { a: "middle", w: 700 });
+    times.forEach(function (t, i) { if (i % step || i === N) return;
+      if (i === 0) s += '<rect x="' + (x(0) - 15) + '" y="' + (axY - 10) + '" width="30" height="14" rx="7" fill="#000"/>' + txt(x(0), axY + 0.5, "Now", 9, { a: "middle", w: 700, fill: "#fff" });
+      else s += txt(x(i), axY + 0.5, hr(t), 9, { a: "middle", w: 600 }); });
+    return s;
+  }
+
+  function render() {
+    var r = root.getBoundingClientRect(), w = r.width || window.innerWidth || 400, h = r.height || window.innerHeight || 240;
+    var u = Math.min(w / 400, h / 240), VW = w / u, VH = h / u, tall = VH >= 380, wide = VW >= 600;
+    var foot = VH - 22, s = '<defs><pattern id="wwq-dith" width="4" height="4" patternUnits="userSpaceOnUse"><rect width="4" height="4" fill="#fff"/><rect width="1.5" height="1.5" fill="#000"/><rect x="2" y="2" width="1.5" height="1.5" fill="#000"/></pattern></defs>';
+    if (!temps.length && !daily.length) {
+      s += txt(VW / 2, VH / 2, "Weather unavailable", 14, { a: "middle", w: 600 });
+    } else {
+      var now = nowLocal(), today = daily.filter(function (d) { return dayKey(d.t) === dayKey(now); })[0] || daily[0] || {};
+      var tmr = daily.filter(function (d) { return d.t > today.t; })[0];
+      var OB = (D.observational && D.observational.observations) || {}, ot = OB.temperature;
+      var curT = ot && ot.temperature != null ? ot.temperature : lerpAt(temps, now), curP = stepAt(precis, now) || { code: today.code, text: today.text };
+      var late = now.getUTCHours() >= 18, rainV = late ? rainNext(now, 12) : (today.t ? dailyRainPct(today) : null);
+      var loc = String((D.location && (D.location.name || D.location.region)) || "—").replace(/\s*\bInternational\b/i, "");
+      if (loc.length > 20) loc = loc.slice(0, 19) + "…";
+      var L = 10;
+      s += txt(L, 21, esc(loc), 15, { w: 700 });
+      var tStr = (curT != null ? Math.round(curT) : "–") + "°";
+      s += txt(L - 2, 82, tStr, 58, { w: 600, ls: -2 });
+      s += place(curP.code, curP.night, L + tStr.length * 30 + 22, 60, 34);
+      s += txt(L, 102, esc(curP.text || today.text || ""), 12);
+      s += txt(L, 124, "H " + (today.max != null ? today.max + "°" : "–") + "  L " + (today.min != null ? today.min + "°" : "–") + "  Rain " + (rainV != null ? rainV + "%" : "–") + (late ? " 12h" : ""), 11, { w: 700 });
+      var ex = [];
+      if (ot && ot.apparentTemperature != null) ex.push("Feels " + Math.round(ot.apparentTemperature) + "°");
+      if (OB.wind && OB.wind.speed != null) ex.push(Math.round(OB.wind.speed) + " " + (OB.wind.directionText || "km/h"));
+      if (OB.humidity && OB.humidity.percentage != null) ex.push(Math.round(OB.humidity.percentage) + "%RH");
+      if (ex.length) s += txt(L, 141, esc(ex.join(" · ")), 10);
+      if (tmr) { var trp = dailyRainPct(tmr);
+        s += '<line x1="' + L + '" x2="' + (tall ? VW - 10 : 168) + '" y1="156" y2="156" stroke="#000" stroke-width="1"/>' +
+          txt(L, 170, "TOMORROW · " + DAYS[tmr.t.getUTCDay()].toUpperCase(), 8.5, { w: 700, ls: 1 }) +
+          place(tmr.code, false, L + 11, 186, 22) +
+          txt(L + 28, 191, tmr.max + "° / " + tmr.min + "°" + (trp != null ? "  · " + trp + "%" : ""), 12, { w: 700 }); }
+      if (tall) s += chart(now, 10, VW - 10, 206, foot - 6, 24);
+      else s += chart(now, 182, VW - 8, 4, foot - 6, wide ? 24 : 12);
+      s += txt(VW - 10, VH - 7, "Updated " + hm(now), 9.5, { a: "end" });
+    }
+    var ls = 14 / 127;
+    s += '<line x1="10" x2="' + (VW - 10) + '" y1="' + foot + '" y2="' + foot + '" stroke="#000" stroke-width="1.5"/>';
+    s += '<g transform="translate(' + (10 + 4 * ls).toFixed(1) + "," + (VH - 18 + 10 * ls).toFixed(1) + ")scale(" + ls.toFixed(4) + ')"><path fill="#000" fill-rule="evenodd" d="' + LOGO_D + '"/></g>';
+    s += '<text x="30" y="' + (VH - 7) + '" font-size="9.5" font-weight="500">Data: <tspan font-weight="700">WillyWeather</tspan> · willyweather.com.au</text>';
+    root.innerHTML = '<svg viewBox="0 0 ' + VW.toFixed(1) + " " + VH.toFixed(1) + '" font-family="' + FONT + '" fill="#000">' + s + "</svg>";
+  }
+  try { render(); } catch (e) { root.innerHTML = '<div style="padding:1rem">Weather unavailable: ' + esc(e.message) + "</div>"; }
+})();
+</script>
