@@ -152,6 +152,8 @@
     s += '<text x="30" y="' + (VH - 7) + '" font-size="9.5" font-weight="500">Data: <tspan font-weight="700">WillyWeather</tspan> · willyweather.com.au</text>';
     root.innerHTML = '<svg viewBox="0 0 ' + VW.toFixed(1) + " " + VH.toFixed(1) + '" font-family="' + FONT + '" fill="#000">' + s + "</svg>";
   }
-  try { render(); } catch (e) { root.innerHTML = '<div style="padding:1rem">Weather unavailable: ' + esc(e.message) + "</div>"; }
+  function safe() { try { render(); } catch (e) { root.innerHTML = '<div style="padding:1rem">Weather unavailable: ' + esc(e.message) + "</div>"; } }
+  safe();
+  if (window.ResizeObserver) new ResizeObserver(safe).observe(root); else window.addEventListener("load", safe);
 })();
 </script>
