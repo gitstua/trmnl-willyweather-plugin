@@ -8,15 +8,21 @@
   .ww * { box-sizing:border-box; }
   .ww-main { flex:1; display:flex; gap:2rem; min-height:0; }
   .ww-left { width:34%; display:flex; flex-direction:column; }
-  .ww-loc { font-size:1.55rem; font-weight:700; line-height:1.1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .ww-loc { font-size:1.55rem; font-weight:700; line-height:1.1; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
   .ww-date { font-size:0.95rem; margin-top:0.25rem; }
   .ww-now { display:flex; align-items:center; gap:0.8rem; margin-top:1.1rem; }
   .ww-now-t { font-size:6.4rem; font-weight:600; letter-spacing:-0.06em; line-height:0.82; }
   .ww-now-i svg { width:3.6rem; height:3.6rem; }
   .ww-desc { font-size:1.2rem; margin-top:1rem; }
   .ww-stats { display:flex; justify-content:space-between; margin-top:1.1rem; }
+  .ww-stats > div { flex:1; }
+  .ww-stats > div:last-child { text-align:right; }
+  .ww-stats > div:nth-child(2) { text-align:center; }
+  .ww-stats.sm { margin-top:0.9rem; padding-top:0.8rem; border-top:1px dashed var(--ink); }
+  .ww-stats.sm .ww-v { font-size:1.2rem; }
+  .ww-u { font-size:0.6em; font-weight:500; margin-left:0.15em; }
   .ww-k { font-size:0.68rem; letter-spacing:0.14em; text-transform:uppercase; font-weight:600; }
-  .ww-v { font-size:1.6rem; font-weight:600; margin-top:0.15rem; }
+  .ww-v { font-size:1.6rem; font-weight:600; margin-top:0.15rem; white-space:nowrap; }
   .ww-tmr { margin-top:auto; border-top:2px solid var(--ink); padding-top:0.7rem; }
   .ww-tmr-row { display:flex; align-items:center; gap:0.8rem; margin-top:0.35rem; }
   .ww-tmr-row svg { width:2.4rem; height:2.4rem; }
@@ -127,6 +133,11 @@ window.WW_DATA = {
     var k = dayKey(d.t); if (rainD[k] && rainD[k].probability != null) return rainD[k].probability;
     var mx = null; rainP.forEach(function (r) { if (dayKey(r.t) === k) mx = Math.max(mx || 0, r.v); }); return mx;
   }
+  function rainNext(now, hrs) { // max probability over buckets overlapping [now, now+hrs]
+    var end = +now + hrs * HOUR, mx = null;
+    rainP.forEach(function (r) { if (+r.t > +now - 3 * HOUR && +r.t <= end) mx = Math.max(mx || 0, r.v); });
+    return mx;
+  }
 
   /* ---------- geometry helpers ---------- */
   function mono(pts) { // monotone cubic (Fritsch–Carlson) → SVG path
@@ -155,7 +166,7 @@ window.WW_DATA = {
     s += '<line x1="0" x2="' + cw + '" y1="' + top + '" y2="' + top + '" stroke="#000" stroke-width="1.2" stroke-dasharray="1.5 4"/>';
     s += txt(cw, top - 4, "100% rain", 10, { a: "end", w: 400 });
     s += '<line x1="0" x2="' + cw + '" y1="' + bot + '" y2="' + bot + '" stroke="#000" stroke-width="2"/>';
-    xs.forEach(function (x, i) { if (labelEvery(i) && vals[i] >= 10) s += '<rect x="' + (x - 15) + '" y="' + (y(vals[i]) - 19) + '" width="30" height="14" rx="3" fill="#fff"/>' + txt(x, y(vals[i]) - 8, Math.round(vals[i]) + "%", 11, { w: 600 }); });
+    xs.forEach(function (x, i) { if (labelEvery(i) && (vals[i] >= 10 || i === 0)) s += '<rect x="' + (x - 15) + '" y="' + (y(vals[i]) - 19) + '" width="30" height="14" rx="3" fill="#fff"/>' + txt(x, y(vals[i]) - 8, Math.round(vals[i] || 0) + "%", 11, { w: 600 }); });
     return s;
   }
 
@@ -213,25 +224,33 @@ window.WW_DATA = {
   }
 
   /* ---------- render ---------- */
+  function stat(k, v) { return '<div><div class="ww-k">' + k + '</div><div class="ww-v">' + v + "</div></div>"; }
   try {
     if (!temps.length && !daily.length) throw new Error("No forecast data");
     var now = nowLocal(), mode = String(D.mode || "hourly").toLowerCase().indexOf("d") === 0 ? "daily" : "hourly";
     var today = daily.filter(function (d) { return dayKey(d.t) === dayKey(now); })[0] || daily[0] || {};
     var tmr = daily.filter(function (d) { return d.t > today.t; })[0];
-    var obs = D.observational && D.observational.observations && D.observational.observations.temperature;
+    var OB = (D.observational && D.observational.observations) || {};
+    var obs = OB.temperature;
     var curT = obs && obs.temperature != null ? obs.temperature : lerpAt(temps, now);
     var curP = stepAt(precis, now) || { code: today.code, text: today.text };
-    var tr = today.t ? dailyRainPct(today) : null, rr = tmr ? dailyRainPct(tmr) : null;
+    var late = now.getUTCHours() >= 18;
+    var rainK = late ? "Rain 12h" : "Rain", rainV = late ? rainNext(now, 12) : (today.t ? dailyRainPct(today) : null);
+    var rr = tmr ? dailyRainPct(tmr) : null;
     var loc = D.location || {};
+    var locName = String(loc.name || loc.region || "—").replace(/\s*\bInternational\b/i, "");
+    var feels = obs && obs.apparentTemperature != null ? Math.round(obs.apparentTemperature) + "°" : "–";
+    var wind = OB.wind && OB.wind.speed != null ? Math.round(OB.wind.speed) + '<span class="ww-u">' + (OB.wind.directionText || "km/h") + "</span>" : "–";
+    var hum = OB.humidity && OB.humidity.percentage != null ? Math.round(OB.humidity.percentage) + "%" : "–";
+    var hasObs = feels !== "–" || wind !== "–" || hum !== "–";
     root.innerHTML =
       '<div class="ww-main"><div class="ww-left">' +
-        '<div class="ww-loc">' + (loc.name || "—") + "</div>" +
+        '<div class="ww-loc">' + locName + "</div>" +
         '<div class="ww-date">' + DAYL[now.getUTCDay()] + ", " + now.getUTCDate() + " " + MON[now.getUTCMonth()] + "</div>" +
         '<div class="ww-now"><div class="ww-now-t">' + (curT != null ? Math.round(curT) : "–") + '°</div><div class="ww-now-i">' + icon(curP.code, curP.night) + "</div></div>" +
         '<div class="ww-desc">' + (curP.text || today.text || "") + "</div>" +
-        '<div class="ww-stats"><div><div class="ww-k">High</div><div class="ww-v">' + (today.max != null ? today.max + "°" : "–") + "</div></div>" +
-          '<div><div class="ww-k">Low</div><div class="ww-v">' + (today.min != null ? today.min + "°" : "–") + "</div></div>" +
-          '<div><div class="ww-k">Rain</div><div class="ww-v">' + (tr != null ? tr + "%" : "–") + "</div></div></div>" +
+        '<div class="ww-stats">' + stat("High", today.max != null ? today.max + "°" : "–") + stat("Low", today.min != null ? today.min + "°" : "–") + stat(rainK, rainV != null ? rainV + "%" : "–") + "</div>" +
+        (hasObs ? '<div class="ww-stats sm">' + stat("Feels", feels) + stat("Wind", wind) + stat("Humidity", hum) + "</div>" : "") +
         (tmr ? '<div class="ww-tmr"><div class="ww-k">Tomorrow · ' + DAYS[tmr.t.getUTCDay()] + '</div><div class="ww-tmr-row">' + icon(tmr.code) +
           '<div class="ww-tmr-t">' + tmr.max + "° / " + tmr.min + '°</div><div class="ww-tmr-r">' + (rr != null ? '<svg viewBox="0 0 24 24" style="width:0.9em;height:0.9em;vertical-align:-0.05em"><path d="M12 3c3 4.2 6 7.6 6 11a6 6 0 0 1-12 0c0-3.4 3-6.8 6-11z" fill="#000"/></svg> ' + rr + "%" : "") + "</div></div></div>" : "") +
       '</div><div class="ww-chart" id="wwc"></div></div>' +
