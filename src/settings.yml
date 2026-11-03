@@ -30,6 +30,7 @@ custom_fields:
   field_type: string
   name: Custom location ID
   description: Only used when Location = Other. Find via /v2/{key}/search.json?query=YourSuburb → location.id
+  default: '4950'
 - keyname: mode
   field_type: select
   name: View
