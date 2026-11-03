@@ -2,6 +2,12 @@
 
 Private plugin. Hourly or 7-day view, one API call per refresh. Works on OG (800×480, 1-bit) and X (1872×1404, 4-bit); scales from viewport.
 
+Not associated with WillyWeather. Just an example of using their API by a fan. For the best weather in Australia you can visit (www.willyweather.com.au)[https://www.willyweather.com.au/]
+
+## Example
+<img width="1872" height="1404" alt="image" src="https://github.com/user-attachments/assets/d48578b9-222c-4891-a3b1-8817028c3a1b" />
+
+
 ## Setup
 1. TRMNL → Plugins → Private Plugin → new.
 2. **Form fields**: in `src/settings.yml` (`custom_fields`).
