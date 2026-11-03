@@ -1,0 +1,11 @@
+---
+watch:
+  - src
+  - .trmnlp.yml
+time_zone: Australia/Sydney
+# secrets from env only — never commit real values
+custom_fields:
+  api_key: "{{ env.WILLYWEATHER_API_KEY }}"
+  location_id: "4950"
+  mode: hourly
+  hours: "24"

@@ -1,0 +1,4 @@
+preview/out/
+__pycache__/
+.env
+*.zip

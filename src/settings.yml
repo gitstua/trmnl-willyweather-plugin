@@ -1,0 +1,37 @@
+---
+name: WillyWeather Curve
+strategy: polling
+polling_verb: get
+polling_url: https://api.willyweather.com.au/v2/{{ api_key }}/locations/{{ location_id }}/weather.json?forecasts=weather,temperature,precis,rainfall,rainfallprobability&days=7&observational=true
+polling_headers: ''
+polling_body: ''
+refresh_interval: 60
+no_screen_padding: 'yes'
+dark_mode: 'no'
+static_data: ''
+custom_fields:
+  - keyname: api_key
+    field_type: password
+    name: WillyWeather API key
+    description: From willyweather.com.au API admin. Needs Forecasts (Weather, Temperature, Precis, Rainfall, Rainfall Probability) + Observational.
+  - keyname: location_id
+    field_type: string
+    name: WillyWeather location ID
+    description: "From /v2/{key}/search.json?query=YourSuburb → location.id (Sydney = 4950)"
+    default: "4950"
+  - keyname: mode
+    field_type: select
+    name: View
+    options:
+      - Hourly: hourly
+      - Daily (7-day): daily
+    default: hourly
+  - keyname: hours
+    field_type: select
+    name: Hourly window
+    options:
+      - "12 hours": "12"
+      - "24 hours": "24"
+      - "36 hours": "36"
+      - "48 hours": "48"
+    default: "24"
