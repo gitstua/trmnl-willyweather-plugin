@@ -2,11 +2,14 @@
 
 Private plugin. Hourly or 7-day view, one API call per refresh. Works on OG (800×480, 1-bit) and X (1872×1404, 4-bit); scales from viewport.
 
-Not associated with WillyWeather. Just an example of using their API by a fan. For the best weather in Australia you can visit (www.willyweather.com.au)[https://www.willyweather.com.au/]
+Not associated with WillyWeather. Just an example of using their API by a fan. For the best weather in Australia you can visit [www.willyweather.com.au](https://www.willyweather.com.au/) and get your own API key to display your own weather.
 
-## Example
+Get your own TRMNL ePaper device at [trmnl.com](https://trmnl.com?ref=eggerton) - **NOTE:** link gives you a discount and I get a small commission.
+
+## Example of what displays on the trmnl device
+<table><tr><td>
 <img width="936" height="702" alt="example epaper image" src="https://github.com/user-attachments/assets/37914ba8-5191-49d2-a0df-b9e501765394" />
-
+</td></tr></table>
 
 ## Setup
 1. TRMNL → Plugins → Private Plugin → new.
