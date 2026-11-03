@@ -47,5 +47,5 @@ custom_fields:
   - 48 hours: '48'
   default: '24'
 name: WillyWeather Curve
-description:
+description: ''
 refresh_interval: 60
